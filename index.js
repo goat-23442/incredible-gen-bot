@@ -1,44 +1,33 @@
-const { Client, GatewayIntentBits, Partials, EmbedBuilder } = require('discord.js');
-const express = require("express");
+const { Client, GatewayIntentBits, EmbedBuilder } = require("discord.js");
 
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-    GatewayIntentBits.DirectMessages
-  ],
-  partials: [Partials.Channel]
+    GatewayIntentBits.MessageContent
+  ]
 });
 
 const prefix = ".";
 const OWNER_ID = "1471837933429325855";
+const COOLDOWN_TIME = 24 * 60 * 60 * 1000; // 24 hours
+
+let generatorEnabled = true;
 const cooldown = new Map();
-const COOLDOWN_TIME = 2 * 60 * 60 * 1000; // 2 hours
-let generatorEnabled = true; // 🔥 Generator toggle
-
-// 🔥 Keep Alive Server (Railway compatible)
-const app = express();
-app.get("/", (req, res) => res.send("Bot is running!"));
-app.listen(process.env.PORT || 3000, () =>
-  console.log("Web server running.")
-);
-
-// 🎲 Generate random mixed code
-function generateCode(length) {
-  const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
-  let result = "";
-
-  for (let i = 0; i < length; i++) {
-    result += characters.charAt(Math.floor(Math.random() * characters.length));
-  }
-
-  return result;
-}
 
 client.once("ready", () => {
   console.log(`Logged in as ${client.user.tag}`);
 });
+
+function generateRandomString(length = 16) {
+  const chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=";
+  let result = "";
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
 
 client.on("messageCreate", async (message) => {
   if (!message.content.startsWith(prefix) || message.author.bot) return;
@@ -46,44 +35,52 @@ client.on("messageCreate", async (message) => {
   const args = message.content.slice(prefix.length).trim().split(/ +/);
   const command = args.shift().toLowerCase();
 
-  // 🔥 OWNER ONLY: ENABLE GENERATOR
+  // =========================
+  // OWNER: ENABLE GENERATOR
+  // =========================
   if (command === "enablegen") {
     if (message.author.id !== OWNER_ID)
-      return message.reply("❌ You are not allowed to use this.");
+      return message.reply("❌ Owner only.");
 
     generatorEnabled = true;
-    return message.reply("✅ Generator has been ENABLED.");
+    return message.reply("✅ Generator ENABLED.");
   }
 
-  // 🔥 OWNER ONLY: DISABLE GENERATOR
+  // =========================
+  // OWNER: DISABLE GENERATOR
+  // =========================
   if (command === "disablegen") {
     if (message.author.id !== OWNER_ID)
-      return message.reply("❌ You are not allowed to use this.");
+      return message.reply("❌ Owner only.");
 
     generatorEnabled = false;
-    return message.reply("🛑 Generator has been DISABLED.");
+    return message.reply("🛑 Generator DISABLED.");
   }
 
-  // 🔥 OWNER RESET COMMAND
-  if (command === "reset") {
+  // =========================
+  // OWNER: RESET COOLDOWN
+  // =========================
+  if (command === "resettime") {
     if (message.author.id !== OWNER_ID)
-      return message.reply("❌ You are not allowed to use this command.");
+      return message.reply("❌ Owner only.");
 
-    const target = message.mentions.users.first() || message.author;
+    const userId = args[0];
+    if (!userId) return message.reply("❌ Provide a user ID.");
 
     for (let key of cooldown.keys()) {
-      if (key.startsWith(target.id)) {
+      if (key.startsWith(userId)) {
         cooldown.delete(key);
       }
     }
 
-    return message.reply(`✅ All cooldowns reset for ${target.tag}`);
+    return message.reply(`✅ Cooldown reset for user ${userId}`);
   }
 
-  // 🔥 GEN COMMAND
+  // =========================
+  // GENERATOR COMMAND
+  // =========================
   if (command === "gen") {
 
-    // 🔒 If disabled
     if (!generatorEnabled) {
       return message.reply("🛑 The generator is currently disabled by the owner.");
     }
@@ -101,58 +98,29 @@ client.on("messageCreate", async (message) => {
       const expiration = cooldown.get(cooldownKey) + COOLDOWN_TIME;
 
       if (now < expiration) {
-        const timeLeft = ((expiration - now) / 60000).toFixed(1);
-        return message.reply(`⏳ You are on cooldown for ${type} for ${timeLeft} more minutes.`);
+        const timeLeft = ((expiration - now) / 3600000).toFixed(1);
+        return message.reply(
+          `⏳ You must wait ${timeLeft} more hours before generating ${type} again.`
+        );
       }
     }
 
     cooldown.set(cooldownKey, now);
 
-    let length;
-    if (type === "crunchyroll") length = 6;
-    if (type === "minecraft") length = 5;
-    if (type === "steam") length = 3;
-
-    const userCode = generateCode(length);
-
-    const gifURL = "https://cdn.discordapp.com/attachments/1474387569818079395/1476581540740726979/lv_0_20260226193526.gif?ex=69a24df8&is=69a0fc78&hm=0a92a2bbf02f7414da6d763fba4ce075e42902cd1599db5dfaee5aafb5f72e32&";
-
-    const serverEmbed = new EmbedBuilder()
-      .setDescription("✅ Thanks for using gen! Check your DMs.")
-      .setColor("#8e44ff")
-      .setImage(gifURL);
-
-    await message.channel.send({ embeds: [serverEmbed] });
+    const generated = generateRandomString(18);
 
     const embed = new EmbedBuilder()
-      .setTitle(`Incredible Gen ${type.charAt(0).toUpperCase() + type.slice(1)}`)
-      .setDescription(
-`Do the following for your ticket:
-
-1️⃣ Go to the #tickets channel  
-2️⃣ Give this code to staff  
-
-🔑 **Your Code:** ${userCode}
-
-⏳ Cooldown for ${type}: 2 Hours`
+      .setTitle(`🎁 ${type.toUpperCase()} Account Generated`)
+      .setDescription(`\`\`\`${generated}\`\`\``)
+      .setImage(
+        "https://cdn.discordapp.com/attachments/1474387569818079395/1476581540740726979/lv_0_20260226193526.gif?ex=69a24df8&is=69a0fc78&hm=0a92a2bbf02f7414da6d763fba4ce075e42902cd1599db5dfaee5aafb5f72e32&"
       )
-      .setColor("#8e44ff")
-      .setImage(gifURL);
+      .setColor("Green")
+      .setFooter({ text: "Enjoy!" })
+      .setTimestamp();
 
-    try {
-      await message.author.send({ embeds: [embed] });
-    } catch {
-      message.reply("❌ I couldn't DM you. Please enable DMs.");
-    }
+    return message.reply({ embeds: [embed] });
   }
 });
 
 client.login(process.env.TOKEN);
-
-process.on("unhandledRejection", error => {
-  console.error("Unhandled promise rejection:", error);
-});
-
-process.on("uncaughtException", error => {
-  console.error("Uncaught exception:", error);
-});
