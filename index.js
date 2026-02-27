@@ -15,6 +15,7 @@ const prefix = ".";
 const OWNER_ID = "1471837933429325855";
 const cooldown = new Map();
 const COOLDOWN_TIME = 2 * 60 * 60 * 1000; // 2 hours
+let generatorEnabled = true; // 🔥 Generator toggle
 
 // 🔥 Keep Alive Server (Railway compatible)
 const app = express();
@@ -45,25 +46,48 @@ client.on("messageCreate", async (message) => {
   const args = message.content.slice(prefix.length).trim().split(/ +/);
   const command = args.shift().toLowerCase();
 
+  // 🔥 OWNER ONLY: ENABLE GENERATOR
+  if (command === "enablegen") {
+    if (message.author.id !== OWNER_ID)
+      return message.reply("❌ You are not allowed to use this.");
+
+    generatorEnabled = true;
+    return message.reply("✅ Generator has been ENABLED.");
+  }
+
+  // 🔥 OWNER ONLY: DISABLE GENERATOR
+  if (command === "disablegen") {
+    if (message.author.id !== OWNER_ID)
+      return message.reply("❌ You are not allowed to use this.");
+
+    generatorEnabled = false;
+    return message.reply("🛑 Generator has been DISABLED.");
+  }
+
   // 🔥 OWNER RESET COMMAND
   if (command === "reset") {
-    if (message.author.id !== OWNER_ID) {
+    if (message.author.id !== OWNER_ID)
       return message.reply("❌ You are not allowed to use this command.");
-    }
 
     const target = message.mentions.users.first() || message.author;
 
-    if (!cooldown.has(target.id)) {
-      return message.reply("⚠️ That user is not on cooldown.");
+    for (let key of cooldown.keys()) {
+      if (key.startsWith(target.id)) {
+        cooldown.delete(key);
+      }
     }
 
-    cooldown.delete(target.id);
-
-    return message.reply(`✅ Cooldown reset for ${target.tag}`);
+    return message.reply(`✅ All cooldowns reset for ${target.tag}`);
   }
 
   // 🔥 GEN COMMAND
   if (command === "gen") {
+
+    // 🔒 If disabled
+    if (!generatorEnabled) {
+      return message.reply("🛑 The generator is currently disabled by the owner.");
+    }
+
     const type = args[0]?.toLowerCase();
 
     if (!["steam", "minecraft", "crunchyroll"].includes(type)) {
@@ -71,17 +95,18 @@ client.on("messageCreate", async (message) => {
     }
 
     const now = Date.now();
+    const cooldownKey = `${message.author.id}-${type}`;
 
-    if (cooldown.has(message.author.id)) {
-      const expiration = cooldown.get(message.author.id) + COOLDOWN_TIME;
+    if (cooldown.has(cooldownKey)) {
+      const expiration = cooldown.get(cooldownKey) + COOLDOWN_TIME;
 
       if (now < expiration) {
         const timeLeft = ((expiration - now) / 60000).toFixed(1);
-        return message.reply(`⏳ You are on cooldown for ${timeLeft} more minutes.`);
+        return message.reply(`⏳ You are on cooldown for ${type} for ${timeLeft} more minutes.`);
       }
     }
 
-    cooldown.set(message.author.id, now);
+    cooldown.set(cooldownKey, now);
 
     let length;
     if (type === "crunchyroll") length = 6;
@@ -92,7 +117,6 @@ client.on("messageCreate", async (message) => {
 
     const gifURL = "https://cdn.discordapp.com/attachments/1474387569818079395/1476581540740726979/lv_0_20260226193526.gif?ex=69a24df8&is=69a0fc78&hm=0a92a2bbf02f7414da6d763fba4ce075e42902cd1599db5dfaee5aafb5f72e32&";
 
-    // ✅ Server Embed
     const serverEmbed = new EmbedBuilder()
       .setDescription("✅ Thanks for using gen! Check your DMs.")
       .setColor("#8e44ff")
@@ -100,7 +124,6 @@ client.on("messageCreate", async (message) => {
 
     await message.channel.send({ embeds: [serverEmbed] });
 
-    // ✅ DM Embed
     const embed = new EmbedBuilder()
       .setTitle(`Incredible Gen ${type.charAt(0).toUpperCase() + type.slice(1)}`)
       .setDescription(
@@ -111,7 +134,7 @@ client.on("messageCreate", async (message) => {
 
 🔑 **Your Code:** ${userCode}
 
-⏳ Cooldown: 2 Hours`
+⏳ Cooldown for ${type}: 2 Hours`
       )
       .setColor("#8e44ff")
       .setImage(gifURL);
@@ -126,7 +149,6 @@ client.on("messageCreate", async (message) => {
 
 client.login(process.env.TOKEN);
 
-// Crash protection
 process.on("unhandledRejection", error => {
   console.error("Unhandled promise rejection:", error);
 });
