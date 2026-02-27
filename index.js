@@ -12,6 +12,7 @@ const client = new Client({
 });
 
 const prefix = ".";
+const OWNER_ID = "1471837933429325855";
 const cooldown = new Map();
 const COOLDOWN_TIME = 2 * 60 * 60 * 1000; // 2 hours
 
@@ -22,7 +23,7 @@ app.listen(process.env.PORT || 3000, () =>
   console.log("Web server running.")
 );
 
-// 🎲 Generate random mixed code (letters + numbers + symbols)
+// 🎲 Generate random mixed code
 function generateCode(length) {
   const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
   let result = "";
@@ -44,6 +45,24 @@ client.on("messageCreate", async (message) => {
   const args = message.content.slice(prefix.length).trim().split(/ +/);
   const command = args.shift().toLowerCase();
 
+  // 🔥 OWNER RESET COMMAND
+  if (command === "reset") {
+    if (message.author.id !== OWNER_ID) {
+      return message.reply("❌ You are not allowed to use this command.");
+    }
+
+    const target = message.mentions.users.first() || message.author;
+
+    if (!cooldown.has(target.id)) {
+      return message.reply("⚠️ That user is not on cooldown.");
+    }
+
+    cooldown.delete(target.id);
+
+    return message.reply(`✅ Cooldown reset for ${target.tag}`);
+  }
+
+  // 🔥 GEN COMMAND
   if (command === "gen") {
     const type = args[0]?.toLowerCase();
 
@@ -71,15 +90,17 @@ client.on("messageCreate", async (message) => {
 
     const userCode = generateCode(length);
 
-    // ✅ Server embed with GIF
+    const gifURL = "https://cdn.discordapp.com/attachments/1474387569818079395/1476581540740726979/lv_0_20260226193526.gif?ex=69a24df8&is=69a0fc78&hm=0a92a2bbf02f7414da6d763fba4ce075e42902cd1599db5dfaee5aafb5f72e32&";
+
+    // ✅ Server Embed
     const serverEmbed = new EmbedBuilder()
       .setDescription("✅ Thanks for using gen! Check your DMs.")
       .setColor("#8e44ff")
-      .setImage("https://cdn.discordapp.com/attachments/1474387569818079395/1476581540740726979/lv_0_20260226193526.gif?ex=69a24df8&is=69a0fc78&hm=0a92a2bbf02f7414da6d763fba4ce075e42902cd1599db5dfaee5aafb5f72e32&");
+      .setImage(gifURL);
 
     await message.channel.send({ embeds: [serverEmbed] });
 
-    // ✅ DM embed
+    // ✅ DM Embed
     const embed = new EmbedBuilder()
       .setTitle(`Incredible Gen ${type.charAt(0).toUpperCase() + type.slice(1)}`)
       .setDescription(
@@ -93,7 +114,7 @@ client.on("messageCreate", async (message) => {
 ⏳ Cooldown: 2 Hours`
       )
       .setColor("#8e44ff")
-      .setImage("https://cdn.discordapp.com/attachments/1474387569818079395/1476581540740726979/lv_0_20260226193526.gif?ex=69a24df8&is=69a0fc78&hm=0a92a2bbf02f7414da6d763fba4ce075e42902cd1599db5dfaee5aafb5f72e32&");
+      .setImage(gifURL);
 
     try {
       await message.author.send({ embeds: [embed] });
