@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, EmbedBuilder } = require("discord.js");
+const { Client, GatewayIntentBits, EmbedBuilder, Partials } = require("discord.js");
 
 const client = new Client({
   intents: [
@@ -7,18 +7,20 @@ const client = new Client({
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.DirectMessages
   ],
-  partials: ["CHANNEL"]
+  partials: [Partials.Channel]
 });
 
 const prefix = ".";
 const OWNER_ID = "1471837933429325855";
-const COOLDOWN_TIME = 24 * 60 * 60 * 1000;
+
+// ✅ 2 HOURS
+const COOLDOWN_TIME = 2 * 60 * 60 * 1000;
 
 let generatorEnabled = true;
 const cooldown = new Map();
 
 client.once("ready", () => {
-  console.log(`Logged in as ${client.user.tag}`);
+  console.log(`✅ Logged in as ${client.user.tag}`);
 });
 
 function generateRandomString(length = 18) {
@@ -26,7 +28,7 @@ function generateRandomString(length = 18) {
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=";
   let result = "";
   for (let i = 0; i < length; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
+    result += chars[Math.floor(Math.random() * chars.length)];
   }
   return result;
 }
@@ -39,18 +41,18 @@ client.on("messageCreate", async (message) => {
 
   // ================= OWNER COMMANDS =================
 
-  if (command === "enablegen") {
-    if (message.author.id !== OWNER_ID)
-      return message.reply("❌ Owner only.");
-    generatorEnabled = true;
-    return message.reply("✅ Generator ENABLED.");
-  }
-
   if (command === "disablegen") {
     if (message.author.id !== OWNER_ID)
       return message.reply("❌ Owner only.");
     generatorEnabled = false;
     return message.reply("🛑 Generator DISABLED.");
+  }
+
+  if (command === "enablegen") {
+    if (message.author.id !== OWNER_ID)
+      return message.reply("❌ Owner only.");
+    generatorEnabled = true;
+    return message.reply("✅ Generator ENABLED.");
   }
 
   if (command === "resettime") {
@@ -66,14 +68,15 @@ client.on("messageCreate", async (message) => {
       }
     }
 
-    return message.reply(`✅ Cooldown reset for user ${userId}`);
+    return message.reply(`✅ Cooldown reset for ${userId}`);
   }
 
   // ================= GENERATOR =================
 
   if (command === "gen") {
+
     if (!generatorEnabled) {
-      return message.reply("🛑 The generator is currently disabled by the owner.");
+      return message.reply("🛑 Generator is disabled.");
     }
 
     const type = args[0]?.toLowerCase();
@@ -89,9 +92,9 @@ client.on("messageCreate", async (message) => {
       const expiration = cooldown.get(cooldownKey) + COOLDOWN_TIME;
 
       if (now < expiration) {
-        const timeLeft = ((expiration - now) / 3600000).toFixed(1);
+        const timeLeft = ((expiration - now) / 60000).toFixed(1);
         return message.reply(
-          `⏳ You must wait ${timeLeft} more hours before generating ${type} again.`
+          `⏳ Wait ${timeLeft} more minutes before generating ${type} again.`
         );
       }
     }
@@ -103,16 +106,16 @@ client.on("messageCreate", async (message) => {
     const embed = new EmbedBuilder()
       .setTitle(`🎁 ${type.toUpperCase()} Account`)
       .setDescription(`\`\`\`${generated}\`\`\``)
-      .setImage("https://cdn.discordapp.com/attachments/1474387569818079395/1476581540740726979/lv_0_20260226193526.gif?ex=69a24df8&is=69a0fc78&hm=0a92a2bbf02f7414da6d763fba4ce075e42902cd1599db5dfaee5aafb5f72e32&")
+      .setImage("https://cdn.discordapp.com/attachments/1474387569818079395/1476581540740726979/lv_0_20260226193526.gif")
       .setColor("Green")
-      .setFooter({ text: "Enjoy!" })
       .setTimestamp();
 
     try {
       await message.author.send({ embeds: [embed] });
       await message.reply("📩 Check your DMs!");
-    } catch (error) {
-      await message.reply("❌ I cannot DM you. Please enable DMs from server members.");
+    } catch (err) {
+      console.log("DM ERROR:", err);
+      await message.reply("❌ I cannot DM you. Enable DMs from server members.");
     }
   }
 });
