@@ -12,9 +12,9 @@ const client = new Client({
 
 const prefix = ".";
 const OWNER_ID = "1471837933429325855";
+const COOLDOWN_TIME = 2 * 60 * 60 * 1000; // 2 HOURS
 
-// ✅ 2 HOURS
-const COOLDOWN_TIME = 2 * 60 * 60 * 1000;
+const BANNER_URL = "https://cdn.discordapp.com/attachments/1474387569818079395/1476581540740726979/lv_0_20260226193526.gif";
 
 let generatorEnabled = true;
 const cooldown = new Map();
@@ -23,11 +23,11 @@ client.once("ready", () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 });
 
-function generateRandomString(length = 18) {
-  const chars =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=";
+// ===== 3 DIGIT RANDOM CODE =====
+function generateSteamCode() {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   let result = "";
-  for (let i = 0; i < length; i++) {
+  for (let i = 0; i < 3; i++) {
     result += chars[Math.floor(Math.random() * chars.length)];
   }
   return result;
@@ -39,7 +39,7 @@ client.on("messageCreate", async (message) => {
   const args = message.content.slice(prefix.length).trim().split(/ +/);
   const command = args.shift().toLowerCase();
 
-  // ================= OWNER COMMANDS =================
+  // ===== OWNER COMMANDS =====
 
   if (command === "disablegen") {
     if (message.author.id !== OWNER_ID)
@@ -55,67 +55,67 @@ client.on("messageCreate", async (message) => {
     return message.reply("✅ Generator ENABLED.");
   }
 
-  if (command === "resettime") {
-    if (message.author.id !== OWNER_ID)
-      return message.reply("❌ Owner only.");
-
-    const userId = args[0];
-    if (!userId) return message.reply("❌ Provide a user ID.");
-
-    for (let key of cooldown.keys()) {
-      if (key.startsWith(userId)) {
-        cooldown.delete(key);
-      }
-    }
-
-    return message.reply(`✅ Cooldown reset for ${userId}`);
-  }
-
-  // ================= GENERATOR =================
+  // ===== GENERATOR =====
 
   if (command === "gen") {
 
-    if (!generatorEnabled) {
-      return message.reply("🛑 Generator is disabled.");
-    }
+    if (!generatorEnabled)
+      return message.reply("🛑 Generator is currently disabled by the owner.");
 
     const type = args[0]?.toLowerCase();
 
-    if (!["steam", "minecraft", "crunchyroll"].includes(type)) {
-      return message.reply("❌ Use: .gen steam | minecraft | crunchyroll");
+    if (type !== "steam") {
+      return message.reply("❌ Only `.gen steam` is enabled.");
     }
 
     const now = Date.now();
-    const cooldownKey = `${message.author.id}-${type}`;
+    const cooldownKey = `${message.author.id}-steam`;
 
     if (cooldown.has(cooldownKey)) {
       const expiration = cooldown.get(cooldownKey) + COOLDOWN_TIME;
 
       if (now < expiration) {
-        const timeLeft = ((expiration - now) / 60000).toFixed(1);
+        const timeLeft = expiration - now;
+        const hours = Math.floor(timeLeft / 3600000);
+        const minutes = Math.floor((timeLeft % 3600000) / 60000);
+
         return message.reply(
-          `⏳ Wait ${timeLeft} more minutes before generating ${type} again.`
+          `⏳ You must wait ${hours}h ${minutes}m before generating again.`
         );
       }
     }
 
     cooldown.set(cooldownKey, now);
 
-    const generated = generateRandomString(18);
+    const code = generateSteamCode();
 
-    const embed = new EmbedBuilder()
-      .setTitle(`🎁 ${type.toUpperCase()} Account`)
-      .setDescription(`\`\`\`${generated}\`\`\``)
-      .setImage("https://cdn.discordapp.com/attachments/1474387569818079395/1476581540740726979/lv_0_20260226193526.gif")
-      .setColor("Green")
-      .setTimestamp();
+    // ===== SERVER EMBED (WITH BANNER) =====
+    const serverEmbed = new EmbedBuilder()
+      .setTitle("✅ Generation Successful")
+      .setDescription("Thank you for using the gen.\n📩 Check your DMs.")
+      .setImage(BANNER_URL)
+      .setColor("#8e44ff");
+
+    await message.reply({ embeds: [serverEmbed] });
+
+    // ===== DM EMBED =====
+    const dmEmbed = new EmbedBuilder()
+      .setTitle("Incredible Gen Steam")
+      .setDescription(
+`Do the following for your account:
+
+1. Go to the tickets channel
+2. Give this code to staff
+
+**Your Code: ${code}**`
+      )
+      .setImage(BANNER_URL)
+      .setColor("#8e44ff");
 
     try {
-      await message.author.send({ embeds: [embed] });
-      await message.reply("📩 Check your DMs!");
+      await message.author.send({ embeds: [dmEmbed] });
     } catch (err) {
-      console.log("DM ERROR:", err);
-      await message.reply("❌ I cannot DM you. Enable DMs from server members.");
+      await message.reply("❌ I cannot DM you. Please enable DMs.");
     }
   }
 });
