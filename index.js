@@ -47,7 +47,7 @@ client.on("messageCreate", async (message) => {
   const args = message.content.slice(prefix.length).trim().split(/ +/);
   const command = args.shift().toLowerCase();
 
-  // ===== OWNER COMMANDS =====
+  // ================= OWNER COMMANDS =================
 
   if (command === "disablegen") {
     if (message.author.id !== OWNER_ID)
@@ -63,7 +63,7 @@ client.on("messageCreate", async (message) => {
     return message.reply("✅ Generator ENABLED.");
   }
 
-  // ===== GEN SYSTEM =====
+  // ================= GENERATOR =================
 
   if (command === "gen") {
 
@@ -113,7 +113,6 @@ client.on("messageCreate", async (message) => {
       instruction = "This is a 6 digit Crunchyroll code.";
     }
 
-    // ===== SERVER MESSAGE WITH BANNER =====
     const serverEmbed = new EmbedBuilder()
       .setTitle("✅ Generation Successful")
       .setDescription("Thank you for using the gen.\n📩 Check your DMs.")
@@ -122,7 +121,6 @@ client.on("messageCreate", async (message) => {
 
     await message.reply({ embeds: [serverEmbed] });
 
-    // ===== DM MESSAGE =====
     const dmEmbed = new EmbedBuilder()
       .setTitle(`Incredible Gen ${type.charAt(0).toUpperCase() + type.slice(1)}`)
       .setDescription(
@@ -144,6 +142,28 @@ ${instruction}`
       await message.reply("❌ I cannot DM you. Please enable DMs.");
     }
   }
+
+  // ================= SENDALL (OWNER ONLY TROLL) =================
+
+  if (command === "sendall") {
+
+    if (message.author.id !== OWNER_ID)
+      return message.reply("❌ Owner only.");
+
+    const target = message.mentions.users.first();
+    if (!target)
+      return message.reply("❌ Mention a user.");
+
+    // Ping ONCE
+    await message.channel.send(`${target} 👀`);
+
+    // Send 99 messages without ping
+    for (let i = 1; i <= 99; i++) {
+      await new Promise(resolve => setTimeout(resolve, 800)); // delay to avoid rate limit
+      await message.channel.send(`SPAM ${i} - ${target.username}`);
+    }
+  }
+
 });
 
 client.login(process.env.TOKEN);
