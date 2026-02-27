@@ -4,13 +4,15 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
-  ]
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.DirectMessages
+  ],
+  partials: ["CHANNEL"]
 });
 
 const prefix = ".";
 const OWNER_ID = "1471837933429325855";
-const COOLDOWN_TIME = 24 * 60 * 60 * 1000; // 24 hours
+const COOLDOWN_TIME = 24 * 60 * 60 * 1000;
 
 let generatorEnabled = true;
 const cooldown = new Map();
@@ -19,7 +21,7 @@ client.once("ready", () => {
   console.log(`Logged in as ${client.user.tag}`);
 });
 
-function generateRandomString(length = 16) {
+function generateRandomString(length = 18) {
   const chars =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=";
   let result = "";
@@ -35,31 +37,22 @@ client.on("messageCreate", async (message) => {
   const args = message.content.slice(prefix.length).trim().split(/ +/);
   const command = args.shift().toLowerCase();
 
-  // =========================
-  // OWNER: ENABLE GENERATOR
-  // =========================
+  // ================= OWNER COMMANDS =================
+
   if (command === "enablegen") {
     if (message.author.id !== OWNER_ID)
       return message.reply("❌ Owner only.");
-
     generatorEnabled = true;
     return message.reply("✅ Generator ENABLED.");
   }
 
-  // =========================
-  // OWNER: DISABLE GENERATOR
-  // =========================
   if (command === "disablegen") {
     if (message.author.id !== OWNER_ID)
       return message.reply("❌ Owner only.");
-
     generatorEnabled = false;
     return message.reply("🛑 Generator DISABLED.");
   }
 
-  // =========================
-  // OWNER: RESET COOLDOWN
-  // =========================
   if (command === "resettime") {
     if (message.author.id !== OWNER_ID)
       return message.reply("❌ Owner only.");
@@ -76,11 +69,9 @@ client.on("messageCreate", async (message) => {
     return message.reply(`✅ Cooldown reset for user ${userId}`);
   }
 
-  // =========================
-  // GENERATOR COMMAND
-  // =========================
-  if (command === "gen") {
+  // ================= GENERATOR =================
 
+  if (command === "gen") {
     if (!generatorEnabled) {
       return message.reply("🛑 The generator is currently disabled by the owner.");
     }
@@ -110,16 +101,19 @@ client.on("messageCreate", async (message) => {
     const generated = generateRandomString(18);
 
     const embed = new EmbedBuilder()
-      .setTitle(`🎁 ${type.toUpperCase()} Account Generated`)
+      .setTitle(`🎁 ${type.toUpperCase()} Account`)
       .setDescription(`\`\`\`${generated}\`\`\``)
-      .setImage(
-        "https://cdn.discordapp.com/attachments/1474387569818079395/1476581540740726979/lv_0_20260226193526.gif?ex=69a24df8&is=69a0fc78&hm=0a92a2bbf02f7414da6d763fba4ce075e42902cd1599db5dfaee5aafb5f72e32&"
-      )
+      .setImage("https://cdn.discordapp.com/attachments/1474387569818079395/1476581540740726979/lv_0_20260226193526.gif?ex=69a24df8&is=69a0fc78&hm=0a92a2bbf02f7414da6d763fba4ce075e42902cd1599db5dfaee5aafb5f72e32&")
       .setColor("Green")
       .setFooter({ text: "Enjoy!" })
       .setTimestamp();
 
-    return message.reply({ embeds: [embed] });
+    try {
+      await message.author.send({ embeds: [embed] });
+      await message.reply("📩 Check your DMs!");
+    } catch (error) {
+      await message.reply("❌ I cannot DM you. Please enable DMs from server members.");
+    }
   }
 });
 
