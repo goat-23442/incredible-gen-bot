@@ -18,17 +18,19 @@ const COOLDOWN_TIME = 2 * 60 * 60 * 1000; // 2 hours
 // 🔥 Keep Alive Server (Railway compatible)
 const app = express();
 app.get("/", (req, res) => res.send("Bot is running!"));
-app.listen(process.env.PORT || 3000, () => 
+app.listen(process.env.PORT || 3000, () =>
   console.log("Web server running.")
 );
 
-// 🎲 Generate number code
+// 🎲 Generate random mixed code (letters + numbers + symbols)
 function generateCode(length) {
+  const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
   let result = "";
-  const numbers = "0123456789";
+
   for (let i = 0; i < length; i++) {
-    result += numbers.charAt(Math.floor(Math.random() * numbers.length));
+    result += characters.charAt(Math.floor(Math.random() * characters.length));
   }
+
   return result;
 }
 
@@ -69,13 +71,15 @@ client.on("messageCreate", async (message) => {
 
     const userCode = generateCode(length);
 
-    await message.channel.send({
-      content: "✅ Thanks for using gen! Check your DMs.",
-      files: [
-        "https://cdn.discordapp.com/attachments/1474387569818079395/1476581540740726979/lv_0_20260226193526.gif"
-      ]
-    });
+    // ✅ Server embed with GIF
+    const serverEmbed = new EmbedBuilder()
+      .setDescription("✅ Thanks for using gen! Check your DMs.")
+      .setColor("#8e44ff")
+      .setImage("https://cdn.discordapp.com/attachments/1474387569818079395/1476581540740726979/lv_0_20260226193526.gif?ex=69a24df8&is=69a0fc78&hm=0a92a2bbf02f7414da6d763fba4ce075e42902cd1599db5dfaee5aafb5f72e32&");
 
+    await message.channel.send({ embeds: [serverEmbed] });
+
+    // ✅ DM embed
     const embed = new EmbedBuilder()
       .setTitle(`Incredible Gen ${type.charAt(0).toUpperCase() + type.slice(1)}`)
       .setDescription(
@@ -89,7 +93,7 @@ client.on("messageCreate", async (message) => {
 ⏳ Cooldown: 2 Hours`
       )
       .setColor("#8e44ff")
-      .setImage("https://cdn.discordapp.com/attachments/1474387569818079395/1476581540740726979/lv_0_20260226193526.gif");
+      .setImage("https://cdn.discordapp.com/attachments/1474387569818079395/1476581540740726979/lv_0_20260226193526.gif?ex=69a24df8&is=69a0fc78&hm=0a92a2bbf02f7414da6d763fba4ce075e42902cd1599db5dfaee5aafb5f72e32&");
 
     try {
       await message.author.send({ embeds: [embed] });
